@@ -1,0 +1,15 @@
+# Competition data: videos, annotations and frames taken from them must stay out of history
+data/
+docs/assets/
+
+# Personal notes
+notes_to_self.txt
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# macOS
+.DS_Store
