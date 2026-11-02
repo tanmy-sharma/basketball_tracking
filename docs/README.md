@@ -24,6 +24,8 @@ evaluation code, and hands-on analysis of the data in `data/`.
 | [05_related_work.md](05_related_work.md) | SoccerNet GSR winners, jersey OCR, team clustering, detectors, trackers, licences |
 | [06_strategy_and_ideas.md](06_strategy_and_ideas.md) | Where the points are, a 6-identity global formulation, convention-matching localization, validation plan, 9-day schedule |
 | [07_open_questions_and_risks.md](07_open_questions_and_risks.md) | Questions to email the organizers; risk register |
+| [16_models_and_training_runs.md](16_models_and_training_runs.md) | Every trained model (detector, eligibility, ViTSTR, baselines), results on IMG_0108, Colab notebooks, fixes, open items |
+| [17_jnr_tracker_extension.md](17_jnr_tracker_extension.md) | Jersey numbers on tracks: join tracker rows to JNR by detection box, split ID switches, stitch fragments, rewrite ids over the whole file |
 
 ## Reference material
 - [reference/compute_TI-HOTA_official.py](reference/compute_TI-HOTA_official.py): official metric code (verbatim)

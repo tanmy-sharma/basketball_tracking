@@ -1,0 +1,7 @@
+_base: number_eligible.yaml
+run_name: number_eligible_resnet34
+model: {backbone: {name: resnet34}}
+train:
+  phases:
+    - {name: head, epochs: 3, unfreeze_blocks: 0, head_lr: 1.0e-3}
+    - {name: finetune, epochs: 10, unfreeze_blocks: 2, head_lr: 3.0e-4, backbone_lr: 1.0e-4, llrd: 0.75}

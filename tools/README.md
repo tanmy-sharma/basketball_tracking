@@ -8,4 +8,8 @@ All court coordinates are in cm (court 1505 x 1105). Frames are 1-based.
 - `validate_submission.py DIR_OR_ZIP [--make-zip out.zip] [--frames IMG_0114=N ...]` - format checks against the roster and video frame counts; builds a root-level ZIP only when error-free.
 - `sensitivity.py` - how much each error type costs in score; results in `sensitivity_results.md`.
 - `viz_overlay.py VIDEO REGISTRATION.csv FRAME [--points file.txt] [--out out.png] [--scale 0.5]` - court lines and labelled points on a frame. Use the training registration for training video and the challenge one for 1280x720 videos.
+- `run_detector.py VIDEO --models rfdetr-large [--every N] [--limit N]` - caches person boxes from public COCO detectors, downscaled to 720p, in `../outputs/detections/`. Fails if the decoded frame count doesn't match the video.
+- `eval_detections.py VIDEO DETS...` - recall, precision, foot-point error in cm, and recall by overlap, height and player, against the GT boxes.
+- `run_trackers.py VIDEO DETS...` - runs the Roboflow trackers (all but McByte), writes tracks, and labels each GT box as tracked, ID switch, tracker miss, low-score miss or detector miss.
+- `trackid/eval_mot.py`, `trackid/stratified.py` - box-level HOTA, CLEAR and Identity metrics, copied from `object_tracking_paper`.
 - Tests: `python -m pytest tests` (about 30 s; compares fast vs reference metric).

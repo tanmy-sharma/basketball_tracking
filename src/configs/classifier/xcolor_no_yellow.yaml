@@ -1,0 +1,5 @@
+_base: base.yaml
+run_name: xcolor_no_yellow
+filters:
+  exclude:
+    - {bib: yellow, numbers: ["6", "9", "10"]}

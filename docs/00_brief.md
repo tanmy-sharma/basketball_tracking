@@ -124,7 +124,7 @@ viewpoint and resolution, and no oblique-view GT you are allowed to use.
 
 ALLOWED
 - Training or fine-tuning on the **official Training set** only, including augmentations of it.
-- Public general-purpose pretrained checkpoints (COCO/CrowdHuman detectors, pose models, PARSeq, VLMs such
+- Public general-purpose pretrained checkpoints (COCO/CrowdHuman detectors, pose models, OCR models, VLMs such
   as Qwen-VL, SigLIP, …), provided they were not trained on the challenge sequences. **Disclose
   checkpoints and sources.**
 - Synthetic data generated independently, from the Training set, or from permitted public sources
@@ -142,16 +142,15 @@ PROHIBITED
 - Sharing code or data outside the team.
 
 GREY: ask the organizers before relying on these
-- Offline/bidirectional processing (global tracklet assignment, RTS smoothing, interpolation). Only "online
-  state updates" is explicitly blessed, but the official baseline itself interpolates and extrapolates offline,
-  and the rule's intent is about training. Likely fine; a one-line email would make it certain.
+- RESOLVED, allowed if automatic: offline/bidirectional processing (global tracklet assignment, smoothing,
+  interpolation). See `competition/organizer_emails.md`, Email 5.
 - Hard-coding the bib-color↔team mapping or a per-video color prior picked by a human. This edges toward "manual
   identity assignment". Safer: derive it automatically, from jersey OCR plus color clustering, with roster logic.
 
 ## 7. Baseline to beat (paper v2, Outdoor subset, τ = 1 m)
 
 Track-ID baseline: YOLOX (SportsMOT weights, no fine-tune) + CAMELTrack + homography of bbox bottom-centre +
-rule-based non-player removal + jersey-number-pipeline (PARSeq + legibility) + 3D color histogram (JS divergence)
+rule-based non-player removal + jersey-number-pipeline (scene-text recogniser + legibility) + 3D color histogram (JS divergence)
 for team + ID-switch merging + interpolation/extrapolation, capped at 6 per frame.
 → **TI-HOTA 71.03 ± 17.8 (DetA 67.15, AssA 75.51)**; 66.20 without merging. Those scores are on the end-line view;
 the oblique 720p challenge view is likely harder.
@@ -176,7 +175,7 @@ the oblique 720p challenge view is likely harder.
 3. **Team by bib colour** is almost trivial with 4 known colours. Use it to reject distractors (referee,
    staff, waiting team, the purple-bib scorekeeper) and to resolve the shared 6/9 numbers in IMG_0114.
 4. **Jersey number by tracklet voting.** Given the team, it is a 3-way choice. Combine a public OCR/VLM
-   (PARSeq, Qwen2.5-VL/Qwen3-VL) with a small classifier trained on training-set crops, downscaled to 720p and
+   (Qwen2.5-VL/Qwen3-VL) with a small classifier trained on training-set crops, downscaled to 720p and
    warped to the oblique viewpoint as augmentation (allowed). Weight votes by legibility.
 5. **Occlusion and crowding** in the oblique view (players stacked near the key): use a strong pretrained
    detector at upscaled resolution, keep low-confidence boxes in the ByteTrack style, use court-space motion

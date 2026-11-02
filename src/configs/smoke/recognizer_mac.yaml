@@ -1,0 +1,13 @@
+# Tier-2 smoke for the ViTSTR recogniser: loads the real stock weights, one short fine-tune on IMG_0106 crops.
+_base: ../recognizer/base.yaml
+run_name: smoke_recognizer_mac
+games: {train: [IMG_0106], test: [IMG_0108]}
+split: {guard_frames: 0}
+crops: {every: 30, limit_frames: 300}
+train:
+  batch_size: 8
+  num_workers: 0
+  patience: 2
+  phases:
+    - {name: top2, epochs: 1, unfreeze_blocks: 2, head_lr: 1.0e-3, backbone_lr: 3.0e-4, llrd: 0.75}
+    - {name: top6, epochs: 1, unfreeze_blocks: 6, head_lr: 3.0e-4, backbone_lr: 1.0e-4, llrd: 0.75}

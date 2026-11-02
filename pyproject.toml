@@ -3,13 +3,20 @@ name = "tracking-challenge"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "filterpy>=2.0.0",
+    "lap>=0.5.13",
     "numpy>=2.5.4",
-    "opencv-python-headless>=5.0.0.93",
     "pandas>=3.1.0",
+    "pydantic>=2.14.2",
+    "pyyaml>=6.0.3",
     "scipy>=1.18.1",
+    "trackers[detection]==2.6.1",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=9.2.0",
+]
+rfdetr = [
+    "rfdetr[train]==1.11.2",
 ]

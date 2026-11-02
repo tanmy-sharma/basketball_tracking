@@ -32,7 +32,7 @@ annotated at line centres. Annotation: half manual, half BoT-SORT-ReID output co
    their co-existing on-court frame count is below T_overlap (Outdoor: 50). Cost = overlap + missing frames.
    It cannot handle *exchanges* between two existing IDs.
 5. **Jersey number**: tracklet-level jersey-number-pipeline (Koshkina & Elder, CVPRW 2024: pose-guided torso crop,
-   legibility classifier, PARSeq, then tracklet consolidation). Tracklets with no recognized number are dropped
+   legibility classifier, scene-text recognition, then tracklet consolidation). Tracklets with no recognized number are dropped
    (this also removes referees).
 6. **Team**: 8×8×8 3D colour histograms of torso crops (median over up to 100 frames), compared with
    Jensen–Shannon divergence. Offense = the tracklet nearest the check-ball spot (or free-throw line) at the first frame;
@@ -63,7 +63,7 @@ Important context:
 - Pose estimation is weakest on wrists and at low resolution (Indoor 720p).
 
 ## 5. Using the official repo legally
-- ✅ Code (BoT-SORT, CAMELTrack, scripts) and **public checkpoints** (YOLOX/SportsMOT, CAMELTrack, PARSeq and legibility
+- ✅ Code (BoT-SORT, CAMELTrack, scripts) and **public checkpoints** (YOLOX/SportsMOT, CAMELTrack, scene-text recogniser and legibility
   weights trained on hockey/SoccerNet) are allowed. Disclose them.
 - ❌ `ground_truth/Outdoor/**` and any Outdoor pose or keypoint annotations are outside the official Training set.
   **Do not use them.** Don't even keep them in the project tree, so you can certify that cleanly in the paper.

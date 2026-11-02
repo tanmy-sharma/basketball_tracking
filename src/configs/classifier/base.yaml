@@ -1,0 +1,11 @@
+run_name: base
+plugin: classifier
+seed: 0
+games:
+  train: [IMG_0104, IMG_0105, IMG_0106, IMG_0107, IMG_0109, IMG_0110, IMG_0111]
+  test: [IMG_0108]
+model: {backbone: {name: dino}, head: number}
+train:
+  phases:
+    - {name: head, epochs: 3, unfreeze_blocks: 0, head_lr: 1.0e-3}
+    - {name: finetune, epochs: 10, unfreeze_blocks: 3, head_lr: 3.0e-4, backbone_lr: 1.0e-4, llrd: 0.75}

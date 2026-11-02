@@ -1,0 +1,21 @@
+run_name: rfdetr_small
+plugin: detector
+seed: 0
+games:
+  train: [IMG_0104, IMG_0105, IMG_0106, IMG_0107, IMG_0109, IMG_0110, IMG_0111]
+  test: [IMG_0108]
+detector:
+  resolution: 512
+  sample_every: 15
+  jpeg_quality: 95
+  epochs: 30
+  batch_size: 16
+  grad_accum_steps: 1
+  lr: 1.0e-4
+  lr_encoder: 1.5e-4
+  num_workers: 8
+  patience: 8
+  checkpoint_interval: 10
+  conf_floor: 0.05
+  predict_every: 5
+  predict_batch: 8

@@ -1,0 +1,4 @@
+_base: base.yaml
+run_name: eligibility
+model: {head: eligibility}
+data: {label_csv: outputs/weak/folds3/eligibility_labels.csv}

@@ -27,7 +27,7 @@ Where sources conflict, the latest email applies.
 |---|---|---|
 | The **official Training set** (IMG_0104–IMG_0111: videos, bboxes, court positions, rosters, registration) | [E1], [REG] | Training, fine-tuning and local validation |
 | **Augmentation** of the official Training data | [E2] | Includes geometric/viewpoint warps, downscaling to 720p, colour jitter, etc. |
-| **Publicly available general-purpose pretrained checkpoints**, if not trained or fine-tuned on the challenge sequences or annotations | [E1], [E2], [E3] | COCO/CrowdHuman/SportsMOT detectors, pose models, ReID, OCR (PARSeq), CLIP/SigLIP, VLMs. **Disclose each checkpoint and source.** |
+| **Publicly available general-purpose pretrained checkpoints**, if not trained or fine-tuned on the challenge sequences or annotations | [E1], [E2], [E3] | COCO/CrowdHuman/SportsMOT detectors, pose models, ReID, OCR, CLIP/SigLIP, VLMs. **Disclose each checkpoint and source.** |
 | **Synthetic data** generated (a) independently, (b) from the official Training set, or (c) from public source material permitted for this use | [E3] | Disclose sources and the generation/training procedure. Applies retroactively to synthetic data made before the update |
 
 ### Prohibited
@@ -50,11 +50,10 @@ Where sources conflict, the latest email applies.
 | Using publicly available same-game GT trajectories to generate or copy predictions | **Prohibited** | [E1], [REG] |
 
 ### Grey zones (ask the organizers before relying on them)
-1. **Offline processing**: global tracklet-to-identity assignment, backward smoothing (RTS), interpolation
-   over future frames. The rules only bless "online state updates" explicitly, but the official baseline itself
-   uses offline interpolation and extrapolation, and the rule's wording targets training. Probably allowed.
-   Suggested email: *"Is offline (non-causal) post-processing such as bidirectional smoothing and
-   whole-video tracklet-to-identity assignment allowed at inference, given no weights are updated?"*
+1. **Offline processing: resolved, allowed** ([organizer_emails.md](organizer_emails.md), Email 5). Each Challenge
+   video may be processed as a whole, using past and future frames, for tracklet-to-identity assignment,
+   bidirectional smoothing and gap interpolation. These steps must stay automatic, use no Challenge GT, and be
+   described in the paper.
 2. **Human-set per-video priors**, e.g. typing "yellow = A in IMG_0114" into a config. That is arguably
    manual identity assignment. Derive it automatically (roster plus OCR plus colour clustering) and say so in
    the paper.
@@ -104,7 +103,7 @@ check the FAQ images on the site.
 ## 8. Compliance checklist (keep updated while building)
 
 - [x] Team registered by Oct 27, done 2026-10-26 (team name: ________, contact email: ________ — fill in; must match on every submission)
-- [ ] Every checkpoint used is listed with URL, version/hash and its training data
+- [ ] Every checkpoint used is listed with URL, version/hash and its training data (so far: `rfdetr-large`, COCO; add its hash)
 - [ ] No file from `open-starlab/TrackID3x3/ground_truth/Outdoor` (or any public Outdoor GT) on disk
 - [ ] No weights updated using challenge frames (detector, ReID, OCR, classifier)
 - [ ] Manual calibration points recorded (image coords + court coords) and described

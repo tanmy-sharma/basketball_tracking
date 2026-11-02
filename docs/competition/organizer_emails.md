@@ -7,6 +7,7 @@ These emails come from Keisuke Fujii (TrackID3x3 Challenge Organizing Team, Nago
 
 | # | Date (approx.) | Change | Supersedes |
 |---|---|---|---|
+| 5 | By Nov 1, 2026 | Reply to our question: **offline, non-causal processing of each whole Challenge video is allowed** if automatic | Nothing; resolves an open question |
 | 4 | ~Oct 23–24, 2026 | Results form opened: one ZIP with both TXT at root; **resubmission allowed, latest counts**; no feedback | Email 1 "submit once" |
 | 3 | Oct 23, 2026 | **Synthetic data allowed** (independent, from the Training set, or from permitted public sources) | Oct 19/21 "Training set only" rule (narrowly relaxed) |
 | 2 | Oct 21, 2026 | `Final challenge/court_registration.csv` corrected (RKU0); manual calibration, public checkpoints and Training-set augmentation explicitly allowed | Old registration CSV |
@@ -90,3 +91,19 @@ Drive file dated Oct 21. It overlays correctly on the court, so it is the correc
 > You may submit more than once; only the latest submission received before the deadline will be considered for evaluation. Please use the same registered team name and contact email for every submission. No intermediate scores or feedback will be provided.
 >
 > Paper, code, checkpoints and README will be collected separately; the November 10 paper deadline remains unchanged.
+
+## Email 5: Offline processing confirmed (private reply to our question)
+
+> Dear Tanmay,
+>
+> Thank you for your question. Yes, the offline processing you describe is permitted. The TrackID3x3 Challenge does not require online-only or strictly causal inference; the reference to online tracking-state updates is an example of allowed inference-time processing.
+>
+> You may process each Challenge video as a whole, using both past and future frames for automatic assignment of tracklets to the rostered identities, bidirectional trajectory smoothing, and gap interpolation.
+>
+> As you proposed, these steps must remain automatic inference/post-processing, without manual player annotation, identity assignment or correction, self-training, pseudo-label-based training, or model-weight updates using Challenge videos. Challenge ground-truth annotations or trajectories must not be used.
+>
+> Please describe these steps in your paper and preserve the exact code, weights, and configuration used to generate your submitted predictions.
+>
+> Best regards,
+> Keisuke Fujii
+> TrackID3x3 Challenge Organizing Team

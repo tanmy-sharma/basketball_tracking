@@ -36,7 +36,7 @@ Don't do generic MOT and attach labels afterwards. Instead:
 4. Fill gaps with physically plausible interpolation (§2). Abstain where the identity is genuinely unknown (see the algebra in 02 §4).
 
 The metric has no ID-switch term, so all that matters is the per-frame label. Offline global assignment is the
-principled way to maximize that. (Confirm with the organizers that non-causal post-processing is fine; the baseline does it.)
+principled way to maximize that. (The organizers confirmed this is allowed if automatic: `competition/organizer_emails.md`, Email 5.)
 
 ## 2. Localization: predict the GT convention, not the truth
 
@@ -92,7 +92,7 @@ GT = homography_endline(bbox bottom-centre in the end-line camera). We see the s
 
 - Closed set: within a team, only 3 numbers. It is a 3-way classification per tracklet.
 - Evidence sources: (1) a small CNN trained on training-set torso crops (end-line view, so mostly backs and fronts
-  are visible; augment to oblique 720p), (2) zero-shot PARSeq or a VLM on upscaled crops, (3) consistency
+  are visible; augment to oblique 720p), (2) zero-shot OCR or a VLM on upscaled crops, (3) consistency
   constraints (each number exactly once per team at any time).
 - Weight votes by legibility (crop size, sharpness, facing). Many frames will be illegible. You only need a few good
   reads per tracklet, and the global assignment carries identity through.

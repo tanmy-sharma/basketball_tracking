@@ -1,0 +1,13 @@
+# Tier-2 smoke on the Mac with real weights and IMG_0106: ~60 crops, one head epoch and one fine-tune epoch.
+_base: ../classifier/base.yaml
+run_name: smoke_classifier_mac
+games: {train: [IMG_0106], test: [IMG_0108]}
+split: {guard_frames: 0}
+crops: {every: 30, limit_frames: 300}
+train:
+  batch_size: 8
+  num_workers: 0
+  patience: 2
+  phases:
+    - {name: head, epochs: 1, unfreeze_blocks: 0, head_lr: 1.0e-3}
+    - {name: finetune, epochs: 1, unfreeze_blocks: 2, head_lr: 3.0e-4, backbone_lr: 1.0e-4, llrd: 0.75}

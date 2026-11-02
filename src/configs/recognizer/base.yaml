@@ -1,0 +1,11 @@
+plugin: recognizer
+seed: 0
+games:
+  train: [IMG_0104, IMG_0105, IMG_0106, IMG_0107, IMG_0109, IMG_0110, IMG_0111]
+  test: [IMG_0108]
+recognizer: {resize: letterbox}
+train:
+  label_smoothing: 0.0  # scoring sums log-probs, so keep them unsmoothed
+  phases:
+    - {name: top2, epochs: 3, unfreeze_blocks: 2, head_lr: 1.0e-3, backbone_lr: 3.0e-4, llrd: 0.75}
+    - {name: top6, epochs: 8, unfreeze_blocks: 6, head_lr: 3.0e-4, backbone_lr: 1.0e-4, llrd: 0.75}

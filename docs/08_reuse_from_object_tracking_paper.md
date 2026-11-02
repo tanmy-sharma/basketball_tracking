@@ -73,7 +73,7 @@ Not in that repo: ReID, jersey identification, court-plane or homography code.
 
 Offline tracklet restitching exists in `scripts/global_track_restitch/`. The map agent ranked it low for being
 "not real-time", but this competition has no real-time requirement, so it deserves another look.
-Offline processing is still an open question for the organizers (see `competition/rules_and_data_policy.md`).
+The organizers have confirmed that automatic offline processing is allowed (`competition/organizer_emails.md`, Email 5).
 
 ## Compliance points to settle before reuse
 
@@ -83,10 +83,13 @@ Offline processing is still an open question for the organizers (see `competitio
 - The repo has no `LICENSE` file. `third_party/yolox_bytetrack/` is vendored, and its licence was not verified.
 - Any reused code ships in the competition code ZIP.
 
-## Next steps
+## Progress
 
-The user's plan: run a detector, then every Roboflow `trackers` tracker except McByte (SORT, ByteTrack, OC-SORT,
-BoT-SORT, CBIoU), and report where the misses mainly are. Only IMG_0106 video is local.
+Ported so far: `eval_mot.py` and `stratified.py` into `tools/trackid/`, with a simplified per-box miss label in
+`tools/run_trackers.py`. The rest of the failure study is not ported.
 
-- `trackers` 2.6.1 is Apache 2.0 and depends on `opencv-python`, which clashes with our `opencv-python-headless`.
-- Machine: Apple M1 Pro, 16 GB.
+Next run: `colab/detect_track_IMG_0106.ipynb` (rebuild with `colab/build_notebook.py` after changing `tools/`).
+It runs `rfdetr-large` on all of IMG_0106, then SORT, ByteTrack, OC-SORT, BoT-SORT and CBIoU, and saves each
+step to `My Drive/tracking_results/IMG_0106/<code version>/`. Rerunning resumes from what is saved.
+
+Checkpoint to disclose: `rfdetr-large` through `inference-models`: Apache 2.0, COCO-pretrained, 704 x 704, 33.9M params.

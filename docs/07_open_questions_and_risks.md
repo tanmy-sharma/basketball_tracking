@@ -2,8 +2,8 @@
 
 ## Questions to email the organizers (trackid3x3-challenge-2026@g.sp.m.is.nagoya-u.ac.jp)
 
-1. **Offline post-processing**: is non-causal processing at inference allowed (whole-video tracklet-to-identity
-   assignment, bidirectional smoothing, interpolation using future frames), given that no weights are updated?
+1. **Offline post-processing: answered, allowed** if automatic (`competition/organizer_emails.md`, Email 5). Covers
+   whole-video tracklet-to-identity assignment, bidirectional smoothing and gap interpolation using future frames.
 2. **Challenge GT provenance**: is the challenge GT, like the training GT, the bottom-centre of boxes from the synchronized
    end-line camera projected with that camera's homography? Or were boxes annotated in the oblique view? (It may not
    be answered, but asking is legitimate.)

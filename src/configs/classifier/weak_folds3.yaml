@@ -1,0 +1,13 @@
+_base: base.yaml
+run_name: weak_folds3
+recognizer: {}
+weak:
+  name: folds3
+  fold_plugin: recognizer
+  folds:
+    - [IMG_0104, IMG_0109]
+    - [IMG_0105, IMG_0110]
+    - [IMG_0106, IMG_0107, IMG_0111]
+  fold_phases:
+    - {name: head, epochs: 2, unfreeze_blocks: 0, head_lr: 1.0e-3}
+    - {name: finetune, epochs: 4, unfreeze_blocks: 2, head_lr: 3.0e-4, backbone_lr: 1.0e-4, llrd: 0.75}

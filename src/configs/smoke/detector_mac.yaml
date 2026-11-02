@@ -1,0 +1,15 @@
+# Tier-2 smoke for the RF-DETR wrapper: a few frames, one epoch, CPU. Run in an isolated env with the rfdetr group:
+#   uv run --isolated --group rfdetr python -m src.train --config src/configs/smoke/detector_mac.yaml
+_base: ../detector/rfdetr_small.yaml
+run_name: smoke_detector_mac
+device: cpu
+games: {train: [IMG_0106], test: [IMG_0108]}
+detector:
+  resolution: 384
+  sample_every: 300
+  epochs: 1
+  batch_size: 2
+  num_workers: 0
+  patience: 1
+  checkpoint_interval: 1
+  predict_batch: 2

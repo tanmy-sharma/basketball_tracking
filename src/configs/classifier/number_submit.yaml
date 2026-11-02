@@ -1,0 +1,6 @@
+# Submission only: trains on all 8 games, no held-out score.
+_base: base.yaml
+run_name: number_submit
+games:
+  train: [IMG_0104, IMG_0105, IMG_0106, IMG_0107, IMG_0108, IMG_0109, IMG_0110, IMG_0111]
+  test: []

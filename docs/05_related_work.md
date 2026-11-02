@@ -22,7 +22,7 @@ before citing in the paper. Licences matter for what you redistribute with the c
 ## 2. Jersey number recognition
 - Koshkina & Elder, *A General Framework for Jersey Number Recognition in Sports Video*, CVPRW 2024. Code:
   https://github.com/mkoshkina/jersey-number-pipeline (CC BY-NC). Pose-guided torso crop, legibility classifier (ResNet-34),
-  PARSeq STR, tracklet aggregation. This is the TrackID3x3 baseline component.
+  scene-text recognition, tracklet aggregation. This is the TrackID3x3 baseline component.
 - Vision-language models (Qwen2.5-VL / Qwen3-VL, Florence-2, etc.) can read numbers zero-shot from upscaled crops
   (no verified sports benchmark found). They are allowed as public checkpoints. Use them for tracklet voting.
 - Our setting is a closed set: given the team, only 3 candidate numbers, of which {6, 9, 10, 11} are confusable
