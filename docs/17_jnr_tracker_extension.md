@@ -50,10 +50,13 @@ joins exactly one JNR row by frame and box, with no IoU guessing.
    calls (`--team-nats` 0.2 log-odds each, since neighbouring calls are correlated), then normalised. A piece is labelled
    if it has at least `--min-reads` 3 reads and a top score of at least `--min-score` 0.6.
 5. **Assign and stitch.** Strongest pieces first (reads x (top - second)). Each takes its best identity, provided that:
-   - no piece already holding it shares more than `--max-overlap` 10 frames with it;
+   - no piece already holding it shares more than `--max-overlap` 30 frames with it (was 10; a short swap at a track's
+     end overlaps the next piece of its own player by 11–19 frames, doc 18);
    - in `ucmc` layout, the player could have run between the pieces (`--vmax` 1000 cm/s plus `--slack` 150 cm).
-   Otherwise it tries its next best (`vote_2nd`), else stays unlabelled (`conflict`). Pieces with one identity are one id,
-   which is the stitch.
+   Otherwise it tries its next best (`vote_2nd`), **but only if that also scores at least `--min-score`**, else it stays
+   unlabelled (`conflict`). Since scores sum to 1, this in effect disables `vote_2nd`: before this rule, a blocked piece
+   took any number with a score above 0 and set off a chain of wrong labels (doc 18). Pieces with one identity are one
+   id, which is the stitch.
 6. **Bridge.** An unlabelled piece takes an identity if a piece of that identity ended at most `--bridge-gap` 90 frames
    before it, it fits the overlap and speed checks, and its own colour calls agree on the team. Neighbours on both sides
    beat one side only. It is assigned only when exactly one identity fits.

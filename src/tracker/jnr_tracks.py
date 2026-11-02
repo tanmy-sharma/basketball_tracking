@@ -24,7 +24,8 @@ Steps
   4. vote per piece: mean P(number | team) over reads with elig >= 0.5 (all non-degenerate reads if none), times the
      piece's P(team) from all its colour calls. Labelled if >= --min-reads reads and top score >= --min-score.
   5. assign: strongest pieces first, each takes its best identity that no placed piece holds at the same time (up to
-     --max-overlap frames) and that it could have run to (<= 10 m/s plus slack, ucmc only); else its next best.
+     --max-overlap frames) and that it could have run to (<= 10 m/s plus slack, ucmc only); else its next best, but only
+     if that also scores >= --min-score, otherwise it stays unnamed.
   6. bridge: an unlabelled piece between two pieces of one identity, which fits in time, speed and team, takes it if only
      one identity fits.
   7. write: same file, same columns and formatting, id replaced. Identity ids are 1..6 (team A numbers, then B, in roster
@@ -68,7 +69,8 @@ class Params:
     split_gain: float = 8.0  # nats a split must gain over one identity for the whole track
     min_reads: int = 3  # reads a piece needs to be labelled by its own vote
     min_score: float = 0.6  # top identity score a piece needs to be labelled
-    max_overlap: int = 10  # frames two pieces of one identity may share (tracker duplicates at births)
+    max_overlap: int = 30  # frames two pieces of one identity may share: tracker duplicates at births, and a short swap at
+    #                        a track's end onto someone else (IMG_0104 track 42: 11 frames; IMG_0109 track 32: 19)
     vmax: float = 1000.0  # cm/s, ucmc only
     slack: float = 150.0  # cm added to the reach check
     bridge_gap: int = 90  # frames: bridge only between neighbours this close in time
@@ -263,13 +265,16 @@ def assign(segs: pd.DataFrame, frames_of: dict, ids, p: Params, court: bool) -> 
     labelled = segs[(segs.n_reads >= p.min_reads) & (segs.score >= p.min_score)]
     for sid in labelled.sort_values(["strength", "n_rows"], ascending=False).index:
         for rank, k in enumerate(np.argsort(-sc[pos[sid]])):
-            if sc[pos[sid], k] <= 0:
+            # A blocked piece may only fall back to an identity its own reads support. Taking any positive score let one
+            # blocked piece take another player's number, which blocked that player's piece in turn (IMG_0109: a rotation of
+            # A4/A10/A12 over ~12,600 rows, docs/18). Unsupported: stay unnamed and leave it to the bridge.
+            if sc[pos[sid], k] < p.min_score:
                 break
             if _fits(sid, k, frames_of, placed, segs, p, court):
                 placed[k].append(sid)
                 segs.loc[sid, ["identity", "how"]] = [f"{ids[k][0]}{ids[k][1]}", "vote" if rank == 0 else "vote_2nd"]
                 break
-        else:
+        if segs.loc[sid, "how"] == "none":  # a candidate whose supported identities were all taken
             segs.loc[sid, "how"] = "conflict"
     # bridge: unlabelled pieces between two placed pieces of one identity
     team_of = {k: ids[k][0] for k in range(len(ids))}

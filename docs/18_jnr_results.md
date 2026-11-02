@@ -12,8 +12,10 @@ the jersey-reader (JNR) reads to the tracks, split them, stitch them. The tracke
   included.
 - **The weak games come from one route in the stitcher.** Almost every wrong label was assigned through `vote_2nd`, a piece
   taking its second choice. On those pieces, the piece's own vote was usually correct.
-- **Fixing that route, tested but not yet applied to the code,** raises the in-sample mean from 0.797 to **0.902** and
-  IMG_0108 from 0.892 to **0.907**. IMG_0109 goes from 0.472 to 0.913, IMG_0111 from 0.621 to 0.872.
+- **Fixing that route (now applied, see "After the fix")** raises the in-sample mean from 0.797 to **0.902** and
+  IMG_0108 from 0.892 to **0.907**. IMG_0109 goes from 0.472 to 0.914, IMG_0111 from 0.621 to 0.872. AssA rises from
+  73.7 to **85.6** in-sample and from 81.4 to 83.1 on IMG_0108.
+- The tables below up to "After the fix" describe the run **before** the fix.
 
 ## Setup
 
@@ -22,7 +24,7 @@ the jersey-reader (JNR) reads to the tracks, split them, stitch them. The tracke
 | **JNR run** | Colab run `0ddd8626` on all 8 training games. Copied to `outputs/colab_jnr/jnr_0ddd8626/`, with the read files in `outputs/jnr/<video>__rfdetr-small-ft-471b3fff__720p__jnr.csv.gz` |
 | **Detections** | The run's detection files are byte-identical to `outputs/detections_ft/`, so every tracker row joins its read by box |
 | **Tracker** | The kept setting, sweep variant `s6_qb_back.4_lock30`: ×6 team penalty, plus the colour safeguard (overlap measured on all boxes, trust by overlap, no call on back or unclear boxes at IoU ≥ 0.4), plus a team lock after 30 frames |
-| **Stitching** | `src/tracker/jnr_tracks.py` with its defaults, including `--max-overlap 10` |
+| **Stitching** | `src/tracker/jnr_tracks.py` with its defaults at the time, including `--max-overlap 10` (now 30) |
 | **Scoring** | "Before" is `identity.py` with guessed jerseys, "after" is `jnr_tracks.py --submission`. Both are scored against GT with `--score`. Box metrics come from `tracker.diagnose`. GT is used only for grading |
 
 **Caveats:**
@@ -193,18 +195,44 @@ How the pieces change, per game, as current / (a) / (a) + (b):
 - A one-line change at `jnr_tracks.py:266`: `if sc[pos[sid], k] < p.min_score: break`.
 - Make `max_overlap` default to 30.
 
-Neither is applied to the repo code yet.
-
 **Testing pitfall:** a module function patched inside multiprocessing workers stays patched for later jobs in the same
 worker. The first comparison was contaminated by this and was rerun.
 
+## After the fix
+
+Both fixes are now in `src/tracker/jnr_tracks.py`:
+- A fallback identity must score at least `--min-score`, otherwise the piece is a `conflict`.
+- `--max-overlap` defaults to 30.
+
+Two tests in `src/tests/test_jnr_tracks.py` cover them. Both fail on the old code and pass on the new:
+- `test_blocked_piece_stays_unnamed`
+- `test_tail_overlap_still_stitches`
+
+All 8 games were regenerated with the fixed code (`outputs/reports/jnr_all.csv`; the pre-fix table is kept as
+`jnr_all_before_fix.csv`). The results match the patched test exactly.
+
+| Game | Real TI-HOTA before → after fix | AssA before → after fix | Ids | Unnamed rows | Conflicts |
+|---|---|---|---|---|---|
+| IMG_0104 | 0.9084 → 0.9088 | 80.5 → 82.4 | 15 | 1,454 | 1 |
+| IMG_0105 | 0.9328 → 0.9326 | 88.1 → 88.0 | 10 | 99 | 1 |
+| IMG_0106 | 0.9186 → 0.9186 | 82.2 → 86.6 | 10 | 25 | 0 |
+| IMG_0107 | 0.9092 → 0.9092 | 85.4 → 86.1 | 10 | 46 | 0 |
+| IMG_0109 | 0.4720 → **0.9137** | 52.6 → **84.7** | 11 | 724 | 1 |
+| IMG_0110 | 0.8197 → **0.8589** | 76.3 → **84.9** | 14 | 131 | 2 |
+| IMG_0111 | 0.6210 → **0.8717** | 50.9 → **86.8** | 9 | 87 | 0 |
+| **Mean, 7 in-sample** | **0.7974 → 0.9019** | **73.7 → 85.6** | 11.3 | 367 | 0.7 |
+| **IMG_0108 (held out)** | **0.8920 → 0.9069** | **81.4 → 83.1** | 13 | 1,287 | 1 |
+
+**What's left:** remaining wrong labels are now in-sample IMG_0106 (one long B1/B5 piece) and IMG_0111. Their
+"wrong rows" counts are overstated for split tracks, since each piece is credited to its whole original track's main
+player. IMG_0108's leftover unnamed rows are mostly one conflict.
+
 ## Next steps
 
-1. **Apply the fallback fix in `assign()`** (line 266). Tested: the in-sample mean rises from 0.797 to 0.902, and
-   IMG_0108 from 0.892 to 0.907.
-2. **Make `--max-overlap` default to 30.** Tested: no score change, but fewer conflicts and unnamed pieces.
-3. **Re-run all 8 games** and compare against this table. IMG_0108 is the fair check; tune only on the other 7.
-4. **Resolve the readability checkpoint mismatch** (`4d403c88` vs `57a986ea`) on the Colab side.
+1. **Trace the remaining conflicts** (IMG_0104 track 65, really A4; IMG_0108's one conflict), and the IMG_0106 B1/B5
+   piece. IMG_0108 is the fair check; tune only on the other 7.
+2. **Resolve the readability checkpoint mismatch** (`4d403c88` vs `57a986ea`) on the Colab side.
+3. **Run the challenge videos** through the same pipeline for the submission.
 
 ## Files
 

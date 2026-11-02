@@ -92,22 +92,44 @@ def test_end_to_end(files):
     assert scores[ids["A10"]]["10"] > 0.9
 
 
-def test_conflict_takes_second_choice(tmp_path):
-    """Two simultaneous tracks both read as A10: the weaker one may not take A10 at the same time."""
+def test_blocked_piece_stays_unnamed(tmp_path):
+    """Two simultaneous tracks both read as A10: the weaker one may not take A10 at the same time, and its reads support no
+    other identity, so it stays unnamed instead of taking another player's number (which would block that player next)."""
     rows, jnr = [], []
     for f in range(1, 61):
         for tid, n_reads in ((1, 60), (2, 20)):
             box = (100.0 * tid, 200.0, 50.0, 120.0 + f)
             rows.append([f, tid, f"{300 * tid:.2f}", "500.00", "0", "0", "det", "0.90", *box, 1, "0.00", 0])
             if f <= n_reads:
-                jnr.append(_jnr_row(f, box, "10", conf=0.6 if tid == 2 else 0.9))
+                jnr.append(_jnr_row(f, box, "10"))  # both confidently A10; track 2 is weaker by having fewer reads
     t, j = tmp_path / "t.txt", tmp_path / "j.csv.gz"
     pd.DataFrame(rows).to_csv(t, header=False, index=False)
     pd.DataFrame(jnr).to_csv(j, index=False, compression="gzip")
     _, segs, _, _ = jt.run(t, j, TEAMS)
     s = segs.set_index("orig_id")
     assert s.loc[1, "identity"] == "A10" and s.loc[1, "how"] == "vote"
-    assert s.loc[2, "identity"] != "A10"
+    assert s.loc[2, "how"] == "conflict"
+    assert pd.isna(s.loc[2, "identity"]) or s.loc[2, "identity"] == ""
+
+
+def test_tail_overlap_still_stitches(tmp_path):
+    """A track that swaps onto someone for its last 20 frames overlaps the next piece of its own player. Both are A10."""
+    rows, jnr = [], []
+    for tid, frames, x0 in ((1, range(1, 101), 300.0), (2, range(81, 161), 400.0)):
+        for f in frames:
+            box = (100.0 * tid, 200.0, 50.0, 120.0 + f)
+            rows.append([f, tid, f"{x0 + (f - 80) if tid == 1 else x0:.2f}", "500.00", "0", "0", "det", "0.90", *box, 1,
+                         "0.00", 0])
+            if f % 2 and not (tid == 1 and f > 80):  # no reads during the swapped tail
+                jnr.append(_jnr_row(f, box, "10"))
+    t, j = tmp_path / "t.txt", tmp_path / "j.csv.gz"
+    pd.DataFrame(rows).to_csv(t, header=False, index=False)
+    pd.DataFrame(jnr).to_csv(j, index=False, compression="gzip")
+    out, segs, _, _ = jt.run(t, j, TEAMS)
+    s = segs.set_index("orig_id")
+    assert s.loc[1, "identity"] == "A10" and s.loc[2, "identity"] == "A10"
+    o = out.assign(frame=out[0].astype(int), id=out[1].astype(int))
+    assert not o.duplicated(["frame", "id"]).any()  # the weaker piece's rows in the 20 shared frames are dropped
 
 
 def test_attach_is_one_to_one():
