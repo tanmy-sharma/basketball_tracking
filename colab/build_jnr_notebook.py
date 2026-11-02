@@ -16,7 +16,9 @@ from build_detect_finetuned_notebook import INSTALL, SETUP, VIDEOS, WEIGHTS_SHA2
 from build_src_notebooks import EXCLUDE_PACKAGES, code, fill, lines
 
 OUT = Path(__file__).resolve().parent / "jnr_all_videos.ipynb"
-ELIG_SHA256 = "57a986ea4d332ca334a0d90c7b56f7a7e663ee31eed40655aaca810abe0f1f80"  # eligibility__6fd02d77 (e0966686)
+# eligibility__6fd02d77 (e0966686) as it is in Drive: the checkpoint every scored JNR result was made with (docs/18).
+# The epoch-13 file in the weights zip is 57a986ea; Drive kept an earlier checkpoint sync of the same run.
+ELIG_SHA256 = "4d403c88ad87819e86a4e7b3a79dfdaeae09369d8342ec93725df6dd74dd43f2"
 VITSTR_SHA256 = "7319ecec70eb2d5b188c4cc161611ee9faf65d666d6182a39e3378a7387734d6"  # vitstr_all__04e8fdd7 (e0966686)
 EVERY = 2
 MIN_CONF = 0.3
@@ -61,33 +63,26 @@ def sha256(path):
 
 WEIGHTS_USED = {}
 
-def fetch_weights(name, digest, folders, pattern, fallback=None):
-    """The file with the expected sha256; if none is in Drive, the run's own best.pt (`fallback`), with a warning."""
+def fetch_weights(name, digest, folders, pattern):
+    """The file with exactly this sha256, or stop: results must come from the pinned weights and no others."""
     local = Path("/content/weights") / name
     if local.exists() and sha256(local) == digest:
         WEIGHTS_USED[name] = {"sha256": digest, "expected": True}
         return local
     places = [p for d in folders if d.is_dir() for p in sorted(d.rglob(pattern))]
     src = next((p for p in places if p.is_file() and p.stat().st_size > 1e6 and sha256(p) == digest), None)
-    if src is None and fallback is not None and fallback.is_file():
-        src = fallback
-        print(f"WARNING: no {name} with sha256 {digest[:8]}... in Drive. Using {fallback} instead.\\n"
-              f"  The training notebook may have left an earlier epoch there. For the exact final weights, upload them to\\n"
-              f"  My Drive/tracking_weights/ and run this cell again.")
     assert src, f"No {name} with sha256 {digest[:8]}... in {[str(d) for d in folders]}. Put a copy in My Drive/tracking_weights."
     local.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, local)
     got = sha256(local)
-    WEIGHTS_USED[name] = {"source": str(src), "sha256": got, "expected": got == digest}
-    print(f"{name}: {src} (sha256 {got[:8]}{'' if got == digest else ', NOT the expected ' + digest[:8]})")
+    assert got == digest, f"{name}: copy of {src} has sha256 {got[:8]}, expected {digest[:8]}"
+    WEIGHTS_USED[name] = {"source": str(src), "sha256": got, "expected": True}
+    print(f"{name}: {src} (sha256 {got[:8]})")
     return local
 
-CLS_RUNS = RESULTS_ROOT / "src_train_classifier/e0966686/runs"
 WEIGHTS = fetch_weights("detector.pth", WEIGHTS_SHA256, [MY / "tracking_weights", RESULTS_ROOT / "src_train_detector"], "*.pth")
-ELIG = fetch_weights("eligibility.pt", "@ELIG@", [MY / "tracking_weights", RESULTS_ROOT / "src_train_classifier"], "*.pt",
-                     CLS_RUNS / "eligibility__6fd02d77/best.pt")
-VITSTR = fetch_weights("vitstr.pt", "@VITSTR@", [MY / "tracking_weights", RESULTS_ROOT / "src_train_classifier"], "*.pt",
-                       CLS_RUNS / "vitstr_all__04e8fdd7/best.pt")
+ELIG = fetch_weights("eligibility.pt", "@ELIG@", [MY / "tracking_weights", RESULTS_ROOT / "src_train_classifier"], "*.pt")
+VITSTR = fetch_weights("vitstr.pt", "@VITSTR@", [MY / "tracking_weights", RESULTS_ROOT / "src_train_classifier"], "*.pt")
 
 on_drive = [p for p in DRIVE_DIR.rglob("*") if p.is_file()]
 SOURCES, problems = {}, {}
@@ -130,6 +125,14 @@ def existing_dets(stem):
     hits = sorted(d.glob(f"*/detections/{stem}__{MODEL}__720p.txt"), key=lambda p: p.stat().st_mtime, reverse=True) if d.is_dir() else []
     return hits[0] if hits else None
 
+def same_weights(results):
+    """True if this folder's results were made with the weights loaded now (from its weights_used.json)."""
+    try:
+        old = json.loads((results / "reports/weights_used.json").read_text())
+    except (OSError, ValueError):
+        return False
+    return all(old.get(k, {}).get("sha256") == v.get("sha256") for k, v in WEIGHTS_USED.items())
+
 def package():
     """One zip of every jnr file, new detection file, preview and log from this code version; to Drive and downloaded."""
     z_path = Path(f"/content/jnr_{CODE_VERSION}.zip")
@@ -159,8 +162,11 @@ try:
         dets_name = f"{stem}__{MODEL}__720p.txt"
         jnr_name = f"jnr/{stem}__{MODEL}__720p__jnr.csv.gz"
         if (results / "done/jnr").exists() and (results / jnr_name).exists():
-            print(f"=== {stem}: already done, skipping", flush=True)
-            continue
+            if same_weights(results):
+                print(f"=== {stem}: already done, skipping", flush=True)
+                continue
+            print(f"=== {stem}: earlier results used other weights, redoing", flush=True)
+            (results / "done/jnr").unlink()
         print(f"=== {stem}", flush=True)
         start = time.time()
         local = Path("/content") / name
@@ -175,6 +181,11 @@ try:
                 print(f"{stem}: detections from {found}", flush=True)
                 dets.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(found, dets)
+                # keep the exact detections the jersey reads point into, and where they came from, with this run
+                save(dets, results / "detections" / dets_name)
+                prov = OUTPUTS / "reports" / stem / "detections_source.json"
+                prov.write_text(json.dumps({"reused_from": str(found), "sha256": sha256(dets)}, indent=1))
+                save(prov, results / "reports/detections_source.json")
             else:
                 print(f"{stem}: no fine-tuned detections in Drive yet, running the detector", flush=True)
                 sh([PY, "-m", "src.infer.detect_video", "--video", local, "--weights", WEIGHTS, "--previews", 8], log=log)

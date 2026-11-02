@@ -30,9 +30,10 @@ the jersey-reader (JNR) reads to the tracks, split them, stitch them. The tracke
 **Caveats:**
 - **Held-out vs in-sample.** IMG_0108 is held out from both the detector and the JNR models. The other 7 games are
   in-sample for both, so their numbers are optimistic.
-- **Readability checkpoint.** `weights_used.json` flags `eligibility.pt` sha256 `4d403c88…` as **unexpected** on all 8
-  games. Doc 16 lists `57a986ea…`, so the run used a different readability checkpoint from the documented one. The detector
-  (`471b3fff`) and ViTSTR (`7319ecec`) hashes are as expected.
+- **Readability checkpoint.** All 8 games used `eligibility.pt` sha256 `4d403c88…`. `weights_used.json` flags it as
+  unexpected only because the notebook then asked for `57a986ea…`, the run's epoch-13 file. `4d403c88` is an earlier
+  copy of the same run's `best.pt` that Drive kept (docs/16, §5.2). The notebooks now pin `4d403c88`, so these scores and
+  the challenge run use the same weights. The detector (`471b3fff`) and ViTSTR (`7319ecec`) hashes are as expected.
 
 ## IMG_0104 first
 
@@ -231,7 +232,7 @@ player. IMG_0108's leftover unnamed rows are mostly one conflict.
 
 1. **Trace the remaining conflicts** (IMG_0104 track 65, really A4; IMG_0108's one conflict), and the IMG_0106 B1/B5
    piece. IMG_0108 is the fair check; tune only on the other 7.
-2. **Resolve the readability checkpoint mismatch** (`4d403c88` vs `57a986ea`) on the Colab side.
+2. ~~Resolve the readability checkpoint mismatch~~: done. `4d403c88` is pinned (see Caveats).
 3. **Run the challenge videos** through the same pipeline for the submission.
 
 ## Files

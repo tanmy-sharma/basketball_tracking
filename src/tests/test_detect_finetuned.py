@@ -272,8 +272,8 @@ def test_jnr_run_cell_reuses_detections_and_detects_when_missing(tmp_path, monke
     ns = {"os": os, "shutil": shutil, "time": time, "zipfile": zipfile, "Path": Path, "sh": sh, "PY": "py",
           "VIDEOS": {n: 3 for n in sources}, "SOURCES": dict(sources), "problems": {}, "RESULTS_ROOT": root,
           "OUTPUTS": outputs, "CODE_VERSION": "v2", "MODEL": model, "WEIGHTS": "w", "ELIG": "e", "VITSTR": "t",
-          "WEIGHTS_USED": {"eligibility.pt": {"expected": False}},
-          "drive": colab.drive, "files": colab.files}
+          "WEIGHTS_USED": {"eligibility.pt": {"sha256": "aaaa", "expected": True}},
+          "sha256": lambda p: "d" * 64, "drive": colab.drive, "files": colab.files}
     run = jnr_cells()[-1].replace('Path("/content") / name', 'Path(TMP) / name').replace('Path(f"/content/', 'Path(f"{TMP}/')
     ns["TMP"] = str(tmp_path)
     exec(run, ns)
@@ -286,6 +286,14 @@ def test_jnr_run_cell_reuses_detections_and_detects_when_missing(tmp_path, monke
     with zipfile.ZipFile(tmp_path / "jnr_v2.zip") as z:
         assert f"IMG_0114/jnr/IMG_0114__{model}__720p__jnr.csv.gz" in z.namelist()
     assert (root / "IMG_0108/v2/reports/weights_used.json").exists()
+    # reused detections are kept with this run's results, with where they came from
+    assert (root / f"IMG_0108/v2/detections/IMG_0108__{model}__720p.txt").exists()
+    assert str(old) in (root / "IMG_0108/v2/reports/detections_source.json").read_text()
+    with zipfile.ZipFile(tmp_path / "jnr_v2.zip") as z:
+        assert f"IMG_0108/detections/IMG_0108__{model}__720p.txt" in z.namelist()
     n = len(cmds)
     exec(run, ns)
     assert len(cmds) == n  # both finished: nothing reruns
+    ns["WEIGHTS_USED"] = {"eligibility.pt": {"sha256": "bbbb", "expected": True}}
+    exec(run, ns)  # other weights now: finished results are not trusted, both videos redo their jersey reads
+    assert [c[2] for c in cmds[n:]] == ["src.infer.jnr_video", "src.infer.jnr_video"]

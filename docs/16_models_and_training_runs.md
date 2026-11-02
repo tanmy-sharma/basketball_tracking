@@ -115,7 +115,7 @@ which shares people with training, so it is optimistic.
 | Run | Role | Architecture | Phases (epochs, blocks unfrozen) | Best epoch / ran | Val | sha256 (first 16) |
 |---|---|---|---|---|---|---|
 | `rfdetr_small__2a3fda10` | **Detector (used)** | RF-DETR Small, all layers trained, 1 class | 30 epochs, batch 32, lr 1e-4 (encoder 1.5e-4) | 28 / 30 | mAP50:95 0.8185 | `471b3fff3f77d320` |
-| `eligibility__6fd02d77` | **Readability (used)** | DINOv2-small + 2-class head | head 3 (0), finetune 10 (3) | 13 / 13 | 0.900 vs weak labels | `57a986ea4d332ca3` |
+| `eligibility__6fd02d77` | **Readability (used)** | DINOv2-small + 2-class head | head 3 (0), finetune 10 (3) | 13 / 13 | 0.900 vs weak labels | used: `4d403c88ad87819e` (see note) |
 | `vitstr_all__04e8fdd7` | **OCR (used)** | ViTSTR-small, 12-token head | top2 3 (2), top6 8 (6) | 11 / 11 | 0.941 | `7319ecec70eb2d5b` |
 | `vitstr_eligible__06cf5f62` | Ablation | ViTSTR-small, readable crops only | as above | 6 / 10, stopped early | 0.998 (inflated) | `107f4e2e12d01ff6` |
 | `vitstr_xcolor_no_yellow__07ab3bae` | Cross-colour test | ViTSTR-small, no yellow 6/9/10 | as above | 11 / 11 | 0.936 | `debfeb7fbe1bb6a8` |
@@ -126,6 +126,12 @@ which shares people with training, so it is optimistic.
 | `xcolor_no_yellow__6b8d7ce4` | Cross-colour test | DINOv2 9-class, no yellow 6/9/10 | as number_all | 13 / 13 | 0.998 | `c3e846cd83bb1d73` |
 | `xcolor_no_green__cdf8bacf` | Cross-colour test | DINOv2 9-class, no green 6/9 | as number_all | 11 / 13 | 0.998 | `c1ce8baace595ca1` |
 | `fold_folds3_*` (3 runs) | Weak-label makers | ViTSTR-small, every 2nd frame | head 2 (0), finetune 4 (2) | 6 / 6 | 0.709, 0.695, 0.661 on the held-out fold | in Drive only |
+
+**Readability checkpoint note.** The run's epoch-13 `best.pt`, which is in the weights zip, is `57a986ea4d332ca3` (val 0.9002).
+Drive kept an earlier copy of the same run's `best.pt`, `4d403c88`, which the training notebook's checkpoint sync wrote
+during training. The final save then skipped it, because the Drive file had the same size and a later time stamp. Every
+scored JNR result (docs/18) used `4d403c88`, so the JNR notebooks pin that hash and stop if it is missing. The last
+epochs differ by under 0.001 val (0.8999 → 0.9002).
 
 ViTSTR details: greyscale 224×224 input (letterbox), a 12-token head ([GO], [s], 0–9) initialised by copying the
 pretrained rows, max length 4, no label smoothing. Roster scoring sums log-probabilities of each allowed number.
