@@ -132,6 +132,67 @@ def test_tail_overlap_still_stitches(tmp_path):
     assert not o.duplicated(["frame", "id"]).any()  # the weaker piece's rows in the 20 shared frames are dropped
 
 
+def _write(tmp_path, rows, jnr):
+    t, j = tmp_path / "t.txt", tmp_path / "j.csv.gz"
+    pd.DataFrame(rows).to_csv(t, header=False, index=False)
+    pd.DataFrame(jnr).to_csv(j, index=False, compression="gzip")
+    return t, j
+
+
+def _ucmc_row(f, tid, x, box):
+    return [f, tid, f"{x:.2f}", "500.00", "0", "0", "det", "0.90", *box, 1, "0.00", 0]
+
+
+def test_unreadable_piece_cannot_take_number(tmp_path):
+    """IMG_0115: a sideline non-player with many unreadable reads (elig < 0.5) out-ranked the real player, whose readable
+    reads were fewer. Unreadable reads must not name a piece, and that piece is left out of the submission."""
+    rows, jnr = [], []
+    for f in range(1, 101):
+        for tid, elig, read in ((1, 0.1, True), (2, 0.9, f <= 30)):
+            box = (100.0 * tid, 200.0, 50.0, 120.0 + f)
+            rows.append(_ucmc_row(f, tid, 300.0 * tid, box))
+            if read:
+                jnr.append(_jnr_row(f, box, "10", elig=elig))
+    t, j = _write(tmp_path, rows, jnr)
+    _, segs, _, stats = jt.run(t, j, TEAMS)
+    s = segs.set_index("orig_id")
+    assert s.loc[2, "identity"] == "A10" and s.loc[2, "how"] == "vote"
+    assert s.loc[1, "how"] == "none" and s.loc[1, "best"] == "A10"  # the vote is recorded, but names nothing
+    assert stats["no_export_ids"] == [int(s.loc[1, "new_id"])]
+    # old behaviour: the unreadable piece is stronger and takes A10 from the real player
+    _, old, _, old_stats = jt.run(t, j, TEAMS, jt.Params(name_min_eligible=0, export_min_eligible=0))
+    o = old.set_index("orig_id")
+    assert o.loc[1, "identity"] == "A10" and o.loc[2, "how"] == "conflict"
+    assert old_stats["no_export_ids"] == []
+
+
+def test_bridge_respects_own_reads(tmp_path):
+    """A piece clearly read as A9, blocked because another piece holds A9 then, sits between two A10 pieces. The bridge
+    may not call it A10 against its own reads (IMG_0115 piece 32: B1 at 0.99, bridged to B5)."""
+    rows, jnr = [], []
+
+    def add(f, tid, x, number):
+        box = (100.0 * tid, 200.0, 50.0, 120.0 + f)
+        rows.append(_ucmc_row(f, tid, x, box))
+        jnr.append(_jnr_row(f, box, number))
+
+    for f in range(1, 201):
+        add(f, 6, 2000.0, "9")  # the real A9, all along
+    for f in range(1, 101):
+        add(f, 1, 300.0 + f, "10")
+    for f in range(102, 141):  # longer than max_overlap, so it can't share A9 with track 6
+        add(f, 4, 400.0 + (f - 100), "9")
+    for f in range(145, 201):
+        add(f, 2, 445.0 + (f - 145), "10")
+    t, j = _write(tmp_path, rows, jnr)
+    _, segs, _, _ = jt.run(t, j, TEAMS)
+    s = segs.set_index("orig_id")
+    assert s.loc[6, "identity"] == "A9" and s.loc[1, "identity"] == "A10" and s.loc[2, "identity"] == "A10"
+    assert s.loc[4, "how"] == "conflict"
+    _, old, _, _ = jt.run(t, j, TEAMS, jt.Params(bridge_veto=0.0))
+    assert old.set_index("orig_id").loc[4, "identity"] == "A10"
+
+
 def test_attach_is_one_to_one():
     tracks = pd.DataFrame({"frame": [1, 1, 2], "dx": [10.0, 10.2, np.nan], "dy": [0.0, 0.0, 0.0],
                            "dw": [5.0, 5.0, 5.0], "dh": [9.0, 9.0, 9.0]})

@@ -22,15 +22,18 @@ Steps
   3. split: a track whose confident reads change identity persistently (binary segmentation on eligible reads, at least
      --min-side reads each side, log-likelihood gain >= --split-gain) is cut midway between the two runs of reads.
   4. vote per piece: mean P(number | team) over reads with elig >= 0.5 (all non-degenerate reads if none), times the
-     piece's P(team) from all its colour calls. Labelled if >= --min-reads reads and top score >= --min-score.
+     piece's P(team) from all its colour calls. Labelled if >= --min-reads reads, top score >= --min-score and at least
+     --name-min-eligible eligible reads (a vote from unreadable reads only is recorded but never names a piece).
   5. assign: strongest pieces first, each takes its best identity that no placed piece holds at the same time (up to
      --max-overlap frames) and that it could have run to (<= 10 m/s plus slack, ucmc only); else its next best, but only
      if that also scores >= --min-score, otherwise it stays unnamed.
   6. bridge: an unlabelled piece between two pieces of one identity, which fits in time, speed and team, takes it if only
-     one identity fits.
+     one identity fits, and not one its own clear vote scores below --bridge-veto.
   7. write: same file, same columns and formatting, id replaced. Identity ids are 1..6 (team A numbers, then B, in roster
      order); other pieces get 100+. Where two pieces of one id overlap, the weaker piece's rows in those frames are dropped.
      OUT.segments.csv explains every piece; OUT.scores.json holds per-id number scores for identity.py.
+  8. --submission: identity.make_rows on OUT, without the unnamed pieces that have fewer than --export-min-eligible
+     eligible reads (stats no_export_ids). Unnamed pieces with readable reads still get a number there.
 Nothing here reads ground truth; --score only grades a training video afterwards.
 """
 from __future__ import annotations
@@ -74,6 +77,11 @@ class Params:
     vmax: float = 1000.0  # cm/s, ucmc only
     slack: float = 150.0  # cm added to the reach check
     bridge_gap: int = 90  # frames: bridge only between neighbours this close in time
+    # Identity admission (docs/20, audit/astra_final_results_verification_2026-11-03.md). 0 restores the old behaviour.
+    name_min_eligible: int = 1  # eligible reads a piece needs to be named by its own vote. Unreadable reads renormalised
+    #                             over 3 roster numbers look certain (a sideline non-player took B1 on IMG_0115)
+    bridge_veto: float = 0.1  # a bridge may not give a piece an identity its own labelled vote scores below this
+    export_min_eligible: int = 1  # --submission: unnamed pieces with fewer eligible reads are left out, not guessed
 
 
 # ----------------------------------------------------------------------------- reading
@@ -227,7 +235,9 @@ def piece_table(v: pd.DataFrame, NgT: np.ndarray, ids, p: Params) -> pd.DataFram
                          n_rows=len(g), n_reads=len(r), n_eligible=len(el), source=source,
                          p_team_a=float(pt[0]),  # ids are sorted by team, so pt[0] is the first team (A)
                          best=f"{ids[order[0]][0]}{ids[order[0]][1]}" if len(use) else "",
-                         score=top if len(use) else 0.0, second=second if len(use) else 0.0,
+                         # below name_min_eligible the vote is kept for the record but cannot name the piece
+                         score=top if len(use) and len(el) >= p.name_min_eligible else 0.0,
+                         second=second if len(use) else 0.0,
                          strength=len(use) * (top - second) if len(use) else 0.0,
                          x0=g.fx.iloc[0], y0=g.fy.iloc[0], x1=g.fx.iloc[-1], y1=g.fy.iloc[-1],
                          **{f"s_{t}{j}": float(s) for (t, j), s in zip(ids, score)}))
@@ -281,9 +291,12 @@ def assign(segs: pd.DataFrame, frames_of: dict, ids, p: Params, court: bool) -> 
     first_team = sorted({t for t, _ in ids})[0]
     for sid in segs[segs.identity == ""].sort_values("n_rows", ascending=False).index:
         me, fits = segs.loc[sid], []
+        voted = me.n_eligible >= p.min_reads and me.score >= p.min_score  # read clearly, but lost its own identity
         for k in range(len(ids)):
             pt = me.p_team_a if team_of[k] == first_team else 1 - me.p_team_a
             if pt < 0.5 or not placed[k]:
+                continue
+            if voted and sc[pos[sid], k] < p.bridge_veto:  # its own reads say another number (IMG_0115 piece 32: B1 0.99)
                 continue
             prev = [o for o in placed[k] if segs.loc[o].end < me.start and me.start - segs.loc[o].end <= p.bridge_gap]
             nxt = [o for o in placed[k] if segs.loc[o].start > me.end and segs.loc[o].start - me.end <= p.bridge_gap]
@@ -347,6 +360,9 @@ def run(tracks_path, jnr_path, teams, p: Params = Params(), fmt: str = "auto"):
                  rows_identified=int(v.new_id.lt(OTHER_ID_BASE).to_numpy()[keep].sum()), ids_out=int(out[1].nunique()))
     scores = {int(r.new_id): {j: float(getattr(r, f"s_{t}{j}")) for t, j in ids if t == r.identity[:1]}
               for r in segs[segs.identity != ""].drop_duplicates("new_id").itertuples()}
+    # unnamed pieces without readable evidence: kept in OUT (overlays, debugging), left out of the submission
+    stats["no_export_ids"] = sorted(int(i) for i in segs.new_id[(segs.identity == "")
+                                                                & (segs.n_eligible < p.export_min_eligible)].unique())
     return out, segs, scores, stats
 
 
@@ -380,7 +396,9 @@ def main(argv: list[str] | None = None) -> None:
         if not a.n_frames:
             raise SystemExit("--submission needs --n-frames")
         from tracker.identity import make_rows, read_tracks as read_ucmc, score
-        rows = make_rows(read_ucmc(a.out), teams, a.n_frames, jersey_scores=scores)
+        tr = read_ucmc(a.out)
+        tr = tr[~tr.id.isin(stats["no_export_ids"])]
+        rows = make_rows(tr, teams, a.n_frames, jersey_scores=scores)
         io.write_submission(a.submission, rows)
         print(f"{a.submission}: {len(rows)} rows")
         if a.score:
