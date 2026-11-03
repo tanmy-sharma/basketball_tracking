@@ -33,7 +33,8 @@ Steps
      order); other pieces get 100+. Where two pieces of one id overlap, the weaker piece's rows in those frames are dropped.
      OUT.segments.csv explains every piece; OUT.scores.json holds per-id number scores for identity.py.
   8. --submission: identity.make_rows on OUT, without the unnamed pieces that have fewer than --export-min-eligible
-     eligible reads (stats no_export_ids). Unnamed pieces with readable reads still get a number there.
+     eligible reads (stats no_export_ids). Unnamed pieces with readable reads still get a number there. Positions are
+     then smoothed along the camera's depth direction (tracker/smooth.py, --smooth-sigma frames, 0 = off).
 Nothing here reads ground truth; --score only grades a training video afterwards.
 """
 from __future__ import annotations
@@ -378,6 +379,8 @@ def main(argv: list[str] | None = None) -> None:
         ap.add_argument(f"--{k.replace('_', '-')}", type=type(d), default=d)
     ap.add_argument("--submission", type=Path, help="ucmc only: also write a submission via identity.make_rows")
     ap.add_argument("--n-frames", type=int)
+    ap.add_argument("--smooth-sigma", type=float, default=4.0,
+                    help="submission: depth smoothing in frames (tracker/smooth.py), 0 = off")
     ap.add_argument("--score", action="store_true", help="training videos only: grade the submission against GT")
     a = ap.parse_args(argv)
     teams = find_roster(a.video, a.roster)
@@ -399,6 +402,9 @@ def main(argv: list[str] | None = None) -> None:
         tr = read_ucmc(a.out)
         tr = tr[~tr.id.isin(stats["no_export_ids"])]
         rows = make_rows(tr, teams, a.n_frames, jersey_scores=scores)
+        if a.smooth_sigma > 0:
+            from tracker.smooth import registration_for, smooth_depth
+            rows = smooth_depth(rows, registration_for(a.video), a.smooth_sigma)
         io.write_submission(a.submission, rows)
         print(f"{a.submission}: {len(rows)} rows")
         if a.score:
