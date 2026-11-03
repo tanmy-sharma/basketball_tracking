@@ -1,5 +1,10 @@
 # Competition data: videos, annotations and frames taken from them must stay out of history
-data/
+data/*
+# ...except the challenge roster and court registration, which run_pipeline.py needs
+!data/Final challenge/
+data/Final challenge/*
+!data/Final challenge/games_roster.csv
+!data/Final challenge/court_registration.csv
 docs/assets/
 
 # Personal notes
@@ -16,6 +21,10 @@ __pycache__/
 
 # Generated detections, tracks and reports
 outputs/
+
+# Model weights (README, 'Weights') and run_pipeline.py output folders
+weights/
+runs/
 
 # Upstream reference clone; the parts we use are in src/tracker
 third_party/

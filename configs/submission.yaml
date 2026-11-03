@@ -1,0 +1,49 @@
+# Frozen inference settings of the uploaded challenge submission (code 3204f04).
+# run_pipeline.py passes every value here explicitly, so no stage relies on its own defaults.
+# Changing anything here means the output is no longer the submitted pipeline.
+
+weights:  # file name inside --weights-dir, and the sha256 it must have
+  detector:    {file: detector_471b3fff.pth,    sha256: 471b3fff3f77d320f9c84cdc1d8978d8a1b6162d6813915c1d8e0c700955f80a}
+  eligibility: {file: eligibility_4d403c88.pt,  sha256: 4d403c88ad87819e86a4e7b3a79dfdaeae09369d8342ec93725df6dd74dd43f2}
+  vitstr:      {file: vitstr_7319ecec.pt,       sha256: 7319ecec70eb2d5b188c4cc161611ee9faf65d666d6182a39e3378a7387734d6}
+
+detector:  # src/infer/detect_video.py: every frame, scaled to 720p, conf floor 0.05 (constants in the module)
+  previews: 8
+
+jnr:  # src/infer/jnr_video.py; ViTPose revision is pinned in src/core/config.py (CropCfg)
+  every: 2
+  min_conf: 0.3
+
+colour:  # src/team/run.py
+  seed: 0
+
+tracker:  # src/tracker/run_ucmc.py, setting ft_guard_lock30 (docs/15, docs/19)
+  cdt: 8
+  ambiguity: 1.0
+  team_scale: 6.0
+  overlap_raw: 1
+  q_bins: "0:0.9999,0.001:0.9996,0.2:0.9926,0.4:0.9375,0.5:0.8615,0.6:0.8215"
+  guard_iou: 0.4
+  guard_front_px: 20
+  team_lock_frames: 30
+
+stitching:  # src/tracker/jnr_tracks.py; its Params defaults are the submitted ones
+  smooth_sigma: 4.0
+
+# What the uploaded run produced, for the comparison at the end of each run. sha256 of the file, or of the
+# decompressed contents for .csv.gz (jnr, labels).
+reference:
+  IMG_0114:
+    n_frames: 11536
+    detections: 9d5a6e81beae8a2d85fd9be73386490af85dfabee6fb9b149d9a2ceb5a9657a7
+    jnr: e266d1e22c0e69503c5d059989260fe14f59388ad61cdf7c49633c60053de850
+    labels: f317438de6a98b18f30d0d9df90a6afc3900918fcf265ababad80dd95f2cd859
+    tracks: 4176d0570e5425d260d37bdbde2ea70e3d1000c352bf9d498c2c95afc3103a44
+    submission: d3bbb2e93d60dc482a1792b0375a4a82e10a6afcd1db92dd7f1dbbd02882bfc0
+  IMG_0115:
+    n_frames: 11823
+    detections: ee7aba7fcf8e0ca57176559695dc48b6cfd8d3934063fb0b29691b668589d23b
+    jnr: 178789a08e02499ba7c3e01f857b4f06a0272113d9cb67772ae28f1502b94dcc
+    labels: c1204ecb0f4fe62b9b9f2b4ed2846b1ecc64bc13f4a83a82abf1cdbc29c50a09
+    tracks: 15630f5a83a216af40d5e84b1dc37dbb148ae10f13e88e794501e5cb17a1019c
+    submission: 79711a1318480afb7650ea25a6d2488fbcabba866cd0e6ea67a6f34474ffc075

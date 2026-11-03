@@ -328,11 +328,12 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0, help="chooses the calibration frames")
     ap.add_argument("--seeds", type=int, default=0, help="also repeat calibration on this many other random draws")
     ap.add_argument("--video", action="store_true", dest="draw", help="draw the team video")
+    ap.add_argument("--video-path", type=Path, help="the video file; default: found by name under data/")
     a = ap.parse_args()
     if a.draw and a.every != 1:
         sys.exit("--video needs --every 1")
 
-    path = video_file(a.video)
+    path = a.video_path or video_file(a.video)
     boxes = load_boxes(a.video, a.boxes)
     # The packet count can exceed the frames that decode (IMG_0104: 11400 and 11376), so don't ask for frames past the last box
     n_frames = min(frame_count(path), int(boxes.frame.max()))

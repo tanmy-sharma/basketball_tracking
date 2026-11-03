@@ -1,0 +1,17 @@
+{
+ "detector.pth": {
+  "source": "/content/drive/MyDrive/tracking_results/src_train_detector/e6a5aded/runs/rfdetr_small__2a3fda10/best.pth",
+  "sha256": "471b3fff3f77d320f9c84cdc1d8978d8a1b6162d6813915c1d8e0c700955f80a",
+  "expected": true
+ },
+ "eligibility.pt": {
+  "source": "/content/drive/MyDrive/tracking_results/src_train_classifier/e0966686/runs/eligibility__6fd02d77/best.pt",
+  "sha256": "4d403c88ad87819e86a4e7b3a79dfdaeae09369d8342ec93725df6dd74dd43f2",
+  "expected": false
+ },
+ "vitstr.pt": {
+  "source": "/content/drive/MyDrive/tracking_results/src_train_classifier/e0966686/runs/vitstr_all__04e8fdd7/best.pt",
+  "sha256": "7319ecec70eb2d5b188c4cc161611ee9faf65d666d6182a39e3378a7387734d6",
+  "expected": true
+ }
+}

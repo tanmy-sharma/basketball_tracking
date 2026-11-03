@@ -1,0 +1,28 @@
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/rfdetr/detr.py:841: FutureWarning: The `RFDETRBase` was deprecated since v1.7.0. It will be removed in v2.0.0.
+  getattr(variant_obj, "__name__", symbol): variant_obj
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/rfdetr/detr.py:841: FutureWarning: The `RFDETRLargeDeprecated` was deprecated since v1.7.0. It will be removed in v2.0.0.
+  getattr(variant_obj, "__name__", symbol): variant_obj
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/rfdetr/detr.py:841: FutureWarning: The `RFDETRSegPreview` was deprecated since v1.7.0. It will be removed in v2.0.0.
+  getattr(variant_obj, "__name__", symbol): variant_obj
+[2026-11-02 17:27:36] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-02 17:27:36] [WARNING] rf-detr - Using patch size 16 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-02 17:27:38] [WARNING] rf-detr - Model is not optimized for inference. Latency may be higher than expected. For full GPU throughput (e.g. ~8x on T4 via FP16 Tensor Cores), call model.inference(dtype=torch.float16).
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/rfdetr/detr.py:121: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:208.)
+  return torch.from_numpy(image.transpose((2, 0, 1)))
+IMG_0115: 2000 frames
+IMG_0115: 4000 frames
+IMG_0115: 6000 frames
+IMG_0115: 8000 frames
+IMG_0115: 10000 frames
+IMG_0115: 11823 frames -> /content/tracking_challenge/outputs/detections/IMG_0115__rfdetr-small-ft-471b3fff__720p.txt
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 199/199 [00:00<00:00, 5592.03it/s]
+/content/tracking_challenge/.venv/lib/python3.12/site-packages/transformers/image_processing_backends.py:135: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:208.)
+  image = torch.from_numpy(image).contiguous()
+IMG_0115: 40693 detections on 11823 frames (every 2) -> /content/tracking_challenge/outputs/jnr/IMG_0115__rfdetr-small-ft-471b3fff__720p__jnr.csv.gz, 887s
