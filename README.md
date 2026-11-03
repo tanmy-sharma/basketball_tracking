@@ -94,6 +94,8 @@ read; the colour stage takes about 100 s per video regardless of `--limit`.
 
 `results/challenge/` holds the submitted files and everything they were made from:
 - `submission/`: the uploaded `IMG_0114.txt` and `IMG_0115.txt`;
+- `uploaded/`: the exact ZIP sent through the results form (sha256 `756fdb2e…`, built by a cached replay in a clean
+  clone) and its two files as unzipped, byte-identical to `submission/`;
 - `intermediates/`: detections and jersey evidence from the Colab run (A100, code version 0ddd8626), and the colour labels;
 - `colab_reports/`: the Colab logs and the weights each video used;
 - `SHA256SUMS`.
