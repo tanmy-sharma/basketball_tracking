@@ -4,8 +4,9 @@ Team- and jersey-aware tracking of the 6 players in a 3x3 basketball video, writ
 challenge format (`frame,x_cm,y_cm,team,jersey`). This README covers reproducing the submitted results from a video.
 Nothing here trains; the model weights are fixed (see Weights).
 
-Pipeline (each stage is an existing module; `run_pipeline.py` calls them with the frozen settings in
-`configs/submission.yaml`):
+Pipeline (each stage is an existing module). `run_pipeline.py` passes the settings in `configs/submission.yaml`
+explicitly; every other setting is the module's source default at the tagged commit, so the configuration is that YAML
+plus the code version:
 
 | Stage | Module | Hardware | Output |
 |---|---|---|---|
@@ -27,7 +28,8 @@ uv sync --frozen --no-dev --python 3.12 --group rfdetr \
     --no-install-package python-doctr --no-install-package rf-groundingdino
 ```
 
-This is the install used on Colab for the submitted run. `--frozen` installs exactly the versions in `uv.lock`. The two
+This is the install used on Colab for the submitted run. Afterwards, always run with `uv run --no-sync` (or
+`.venv/bin/python`): a plain `uv run` re-syncs the environment and would add the dev group and the two excluded packages. `--frozen` installs exactly the versions in `uv.lock`. The two
 excluded packages come in only through `trackers[detection]`; nothing in this repo imports them. ViTPose
 (`usyd-community/vitpose-base-simple`, revision pinned in `src/core/config.py`) and the DINOv2 / ViT backbone configs are
 downloaded from the Hugging Face Hub on first use.
@@ -42,7 +44,11 @@ Put the three files in `weights/` under these names. `run_pipeline.py` checks ea
 | `eligibility_4d403c88.pt` | `4d403c88ad87819e86a4e7b3a79dfdaeae09369d8342ec93725df6dd74dd43f2` | DINOv2 eligibility head (run `eligibility__6fd02d77`, the checkpoint kept in Drive) |
 | `vitstr_7319ecec.pt` | `7319ecec70eb2d5b188c4cc161611ee9faf65d666d6182a39e3378a7387734d6` | ViTSTR fine-tuned on all jersey crops (run `vitstr_all__04e8fdd7`) |
 
-Download: TODO (fixed-version links).
+Download: TODO (fixed-version links). The eligibility file is not the epoch-13 `57a986ea` in the weights zip of
+that run. The submission used `4d403c88`, the earlier checkpoint of the same run kept in Drive, which every scored
+training-game result also used (docs/18). The Colab records in `results/challenge/colab_reports/*/weights_used.json`
+show `"expected": false` for it because the notebook pinned `57a986ea` at the time; the hash recorded there is
+`4d403c88`. Those records are kept as written.
 
 ### Data
 
@@ -52,18 +58,28 @@ are not: pass their paths with `--video-path`.
 ## Run
 
 ```
-uv run python run_pipeline.py --config configs/submission.yaml \
+uv run --no-sync python run_pipeline.py --config configs/submission.yaml \
     --video-path /path/to/IMG_0114.MP4 /path/to/IMG_0115.MP4 --output-dir runs/fresh
 ```
 
 With both challenge videos, the run ends with `runs/fresh/submission/IMG_0114.txt`, `IMG_0115.txt`, the validated upload
-ZIP `runs/fresh/submission.zip`, `logs/` and `manifest.json`. The manifest has the sha256 of the weights, of every stage's
-output and of the config, and a comparison of each output with the submitted run (`same` / `DIFFERENT`). The command exits
-with 1 if anything differs. A stopped run resumes from the stages already finished in `--output-dir`.
+ZIP `runs/fresh/submission.zip`, `logs/` and `manifest.json`. The manifest records the environment (Python, platform,
+commit), the weights loaded and hash-checked in this run, which outputs were computed and which came from the cache (with
+the cache's own provenance), the sha256 of every stage output, whether each is byte-identical to the submitted run
+(`same` / `DIFFERENT`), and `ti_hota_vs_submitted`. A finished run exits with 0 even if outputs differ; add `--verify` for
+a strict replay that exits with 1 unless every output is byte-identical.
+
+The output folder is guarded:
+- it must not overlap `results/`, `data/`, `outputs/`, the cache, the weights or the videos' folders, and inside the
+  repo it must be under `runs/`;
+- rerunning into the same folder resumes the stages that finished, but only if the videos, config, cache, device,
+  `--limit` and commit are the same (`run.json`). Otherwise, or if the folder is non-empty without `run.json`, the run
+  is refused before anything is written.
 
 Options:
 - `--cache-dir results/challenge/intermediates`: take detections, jersey evidence and colour labels from the submitted
-  run instead of computing them. Only stages 4 to 6 run, on CPU, in about a minute.
+  run instead of computing them. Only stages 4 to 6 run, on CPU, in about a minute. With `--verify` this is the exact
+  replay check.
 - `--device cpu`: the jersey reader on CPU. The detector uses CUDA when available, otherwise MPS on a Mac, otherwise CPU.
 - `--limit N`: smoke test on the first N frames of each video (no reference comparison).
 
@@ -85,8 +101,9 @@ Verified on the development Mac (macOS, Apple silicon):
   were made on this Mac.
 - `--limit 60` on both videos with `--device cpu` runs every stage without error.
 
-`manifest.json` reports, per video, `same` or `DIFFERENT` for every stage output, and `ti_hota_vs_submitted`: the new
-submission scored with TI-HOTA against the submitted one as if that were the ground truth. 1.0 means identical.
+`ti_hota_vs_submitted` is the new submission scored with TI-HOTA against the submitted one as if that were the ground
+truth. It measures how close the result is, not identity: small coordinate differences can still score 1.0. Only the
+hashes (`same`) show byte identity.
 
 Known sources of difference in a fresh run:
 - **GPU inference (stages 1 and 2).** Different GPUs, drivers and kernels give slightly different floats, so detection
@@ -98,7 +115,13 @@ Known sources of difference in a fresh run:
   software decoding for stage 3 with the cached detections and jersey evidence: 0.93% / 0.75% of the colour team calls
   change, and `ti_hota_vs_submitted` is 0.9962 (IMG_0114) and 0.9992 (IMG_0115).
 
-So a fresh run on another machine reproduces the submission approximately, not byte for byte. The exact reproduction is
-`--cache-dir results/challenge/intermediates`, from the stored model outputs.
+So a fresh run on another machine is not expected to be byte-identical. How close a fresh run with the production
+weights gets is not measured yet: the 0.9962 / 0.9992 above isolate decoding in stage 3 only, with stored detections and
+jersey evidence, and fresh GPU inference adds its own differences. The exact reproduction is
+`--cache-dir results/challenge/intermediates --verify`, from the stored model outputs.
 
-The tracker, stitching and smoothing (stages 4 and 5) are deterministic CPU code: the same inputs give the same output.
+Stages 4 and 5 are CPU code with no randomness; on the Mac, repeated runs give identical files. That they are also
+identical on Linux is what `--verify` on another machine checks.
+
+Not yet verified: a fresh run with the production eligibility weights (`4d403c88`) on a GPU. The `--limit 60` smoke test
+above used the local `57a986ea` file, so it shows that the code runs, not that the results match.
