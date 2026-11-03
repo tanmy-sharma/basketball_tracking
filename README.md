@@ -131,3 +131,19 @@ identical on Linux is what `--verify` on another machine checks.
 
 Not yet verified: a fresh run with the production eligibility weights (`4d403c88`) on a GPU. The `--limit 60` smoke test
 above used the local `57a986ea` file, so it shows that the code runs, not that the results match.
+
+## Paper
+
+**Player Tracking and Identification in 3×3 Basketball Using Court Geometry and Jersey Recognition**
+
+Tracking basketball players requires maintaining identity through occlusion, similar uniforms, and intermittent
+visibility of jersey numbers. We present a fully automatic pipeline that estimates player court positions, team
+affiliations, and jersey numbers throughout fixed-camera 3×3 basketball video, combining court geometry, team
+appearance, and jersey recognition. A fine-tuned RF-DETR detector localizes players, and a court homography maps the
+bottom-center of each bounding box onto the ground plane. An adapted UCMCTrack associates detections on the court using
+motion uncertainty and a soft team-colour penalty, and discounts colour evidence when players overlap. Pose-guided torso
+crops are passed to a DINOv2-based classifier that estimates the reliability of jersey recognition and to a ViTSTR
+jersey-number reader. Offline identity inference aggregates reliable jersey evidence, splits tracklets where that
+evidence changes, and assigns roster identities under temporal and physical constraints, and final positions are
+smoothed along the camera’s depth direction. We describe each component and its training on the official training
+games, and evaluate the full system with the TI-HOTA metric.
