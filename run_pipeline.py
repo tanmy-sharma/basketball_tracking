@@ -20,12 +20,15 @@ without byte identity; only the hashes show identity.
 The video id is the file name without extension (IMG_0114). Its roster and court registration are read from
 data/Final challenge/. Weights are checked by sha256 before a model stage runs.
 
---cache-dir: a folder with any of detections/, jnr/ and labels/ from an earlier run, under the names above (the
-submission's own are in results/challenge/intermediates). A stage whose file is there is copied instead of run, so the
-later stages can be replayed without a GPU.
+--cache-dir: a folder with any of detections/, jnr/ and labels/ (+ its .sha256) from an earlier run, under the names
+above (the submission's own are in results/challenge/intermediates). A stage whose file is there is copied instead of run,
+so the later stages can be replayed without a GPU. Jersey reads and labels point into the detection file, so a cached one
+is accepted only if the detections also came from the cache, and every one, cached or computed, is checked row by row
+against the detection file.
 --output-dir: rerunning into the same folder resumes finished stages, but only with the same videos, config, cache,
-device, --limit and code commit (recorded in run.json); anything else is refused. It must not overlap results/, data/,
-outputs/, the cache, the weights or the videos' folders; inside the repo it must be under runs/.
+device, --limit and code commit (recorded in run.json); anything else is refused. A finished stage is reused only if its
+inputs and outputs still have the hashes recorded in done/<stage>.json; otherwise it is redone. The folder must not
+overlap results/, data/, outputs/, the cache, the weights or the videos' folders; inside the repo it must be under runs/.
 --limit N: smoke test on the first N >= 30 frames (no reference comparison).
 --verify: strict replay. Exit with 1 unless every stage output is byte-identical to the submitted run. Without it, a
 finished run exits with 0 and differences are only reported (a fresh run on other hardware is expected to differ).
@@ -93,13 +96,36 @@ class Runner:
                 sys.exit(f"{name} failed with exit code {p.returncode}; see {self.log / f'{name}.log'}")
         print(f"--- {name}: {time.time() - t0:.0f}s", flush=True)
 
-    def finished(self, stage: str) -> bool:
-        return (self.done / stage).is_file()
+    def finished(self, stage: str, inputs: dict[str, str]) -> dict | None:
+        """The stage's record if it finished earlier, was made from these inputs and its outputs are unchanged."""
+        f = self.done / f"{stage}.json"
+        if not f.is_file():
+            return None
+        rec = json.loads(f.read_text())
+        why = None
+        if rec.get("inputs") != inputs:
+            why = "its inputs changed"
+        else:
+            for name, digest in rec.get("outputs", {}).items():
+                path = self.out / name
+                if not path.is_file():
+                    why = f"{name} is missing"
+                elif sha256(path) != digest:
+                    why = f"{name} was changed"
+                if why:
+                    break
+        if why:
+            print(f"\n=== {stage}: finished earlier, but {why}; redoing it", flush=True)
+            f.unlink()
+            return None
+        return rec
 
-    def mark(self, stage: str) -> None:
+    def mark(self, stage: str, origin: str, inputs: dict[str, str], outputs: list[Path]) -> None:
         """Written only after a stage succeeded, so an interrupted stage is redone, never reused."""
         self.done.mkdir(parents=True, exist_ok=True)
-        (self.done / stage).touch()
+        rec = {"origin": origin, "inputs": inputs,
+               "outputs": {str(o.relative_to(self.out)): sha256(o) for o in outputs}}
+        (self.done / f"{stage}.json").write_text(json.dumps(rec, indent=1))
 
 
 def check_weights(cfg: dict, folder: Path) -> dict[str, Path]:
@@ -155,14 +181,32 @@ def claim_output_dir(out: Path, stamp: dict) -> None:
         f.write_text(json.dumps(stamp, indent=1))
 
 
-def from_cache(cache: Path | None, rel: str, dest: Path) -> bool:
-    if cache is None or not (cache / rel).is_file():
-        return False
-    assert not overlaps(dest.resolve(), cache)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(cache / rel, dest)
-    print(f"\n=== {rel}: copied from cache {cache}", flush=True)
-    return True
+def copy_from_cache(cache: Path, dests: list[Path]) -> None:
+    for dest in dests:
+        src = cache / dest.parent.name / dest.name
+        if not src.is_file():
+            sys.exit(f"cache {cache} has {dests[0].name} but not {src.name}, which must come with it")
+        assert not overlaps(dest.resolve(), cache)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dest)
+        print(f"\n=== {dest.parent.name}/{dest.name}: copied from cache {cache}", flush=True)
+
+
+def check_rows(table: Path, dets: Path) -> None:
+    """Jersey reads and colour labels point into the detection file by det_row (its 0-based line). Check that every
+    row's frame and box are those of that line, so a file made from other detections is never used."""
+    import numpy as np
+    import pandas as pd
+    d = pd.read_csv(dets, header=None, usecols=[0, 2, 3, 4, 5], names=["frame", "x", "y", "w", "h"])
+    t = pd.read_csv(table, usecols=["det_row", "frame", "x", "y", "w", "h"])
+    ok = bool(t.det_row.between(0, len(d) - 1).all())
+    if ok:
+        r = d.iloc[t.det_row.to_numpy()]
+        # jersey files store boxes with 5 significant digits
+        ok = bool((r.frame.to_numpy() == t.frame.to_numpy()).all()) and np.allclose(
+            r[["x", "y", "w", "h"]].to_numpy(), t[["x", "y", "w", "h"]].to_numpy(), rtol=1e-4, atol=0.01)
+    if not ok:
+        sys.exit(f"{table.name} does not match {dets.name}: it was made from other detections")
 
 
 def one_video(video: Path, cfg: dict, a: argparse.Namespace, run: Runner, weights) -> dict:
@@ -182,34 +226,43 @@ def one_video(video: Path, cfg: dict, a: argparse.Namespace, run: Runner, weight
     print(f"\n##### {vid}: {video}", flush=True)
     n_frames = a.limit or decoded_frames(video)
     print(f"frames: {n_frames}", flush=True)
-    sources = {}
-    stage = f"{vid}_1_detect"
-    if not run.finished(stage):
-        if from_cache(cache, f"detections/{dets.name}", dets):
-            sources["detections"] = "cache"
+    j = cfg["jnr"]
+    sidecar = Path(f"{labels}.sha256")  # sha256 of the detection file the labels were made from
+    stages = [  # (name, outputs, upstream stages it was made from, command when it is computed)
+        ("detections", f"{vid}_1_detect", [dets], [],
+         lambda: [py, "-m", "src.infer.detect_video", "--video", video, "--weights", weights()["detector"],
+                  "--previews", 0 if a.limit else cfg["detector"]["previews"], *limit]),
+        ("jnr", f"{vid}_2_jnr", [jnr], ["detections"],
+         lambda: [py, "-m", "src.infer.jnr_video", "--video", video, "--dets", dets, "--eligibility",
+                  weights()["eligibility"], "--vitstr", weights()["vitstr"], "--every", j["every"],
+                  "--min-conf", j["min_conf"], "--device", a.device, *limit]),
+        ("labels", f"{vid}_3_colour", [labels, sidecar], ["detections"],
+         lambda: [py, "-m", "src.team.run", vid, "--boxes", dets, "--video-path", video, "--seed", cfg["colour"]["seed"]]),
+    ]
+    origin: dict[str, str] = {}
+    main_file = {kind: outs[0] for kind, _, outs, _, _ in stages}
+    for kind, name, outs, deps, command in stages:
+        inputs = {d: sha256(main_file[d]) for d in deps}
+        if rec := run.finished(name, inputs):
+            origin[kind] = f"reused_from_previous_run ({rec['origin']})"
+            print(f"\n=== {name}: finished earlier ({rec['origin']}), outputs unchanged", flush=True)
+            continue
+        if cache and (cache / outs[0].parent.name / outs[0].name).is_file():
+            # A cached file is only valid next to the cached files it was made from.
+            if fresh := [d for d in deps if "copied_from_cache" not in origin[d]]:
+                sys.exit(f"cache {cache} has {outs[0].name}, but its {fresh} were not taken from the cache. It was "
+                         f"made from the cached ones, so it can't be used with others: remove it from the cache, or "
+                         f"add the files it was made from")
+            copy_from_cache(cache, outs)
+            origin[kind] = "copied_from_cache"
         else:
-            run(stage, [py, "-m", "src.infer.detect_video", "--video", video, "--weights", weights()["detector"],
-                        "--previews", 0 if a.limit else cfg["detector"]["previews"], *limit])
-        run.mark(stage)
-    stage = f"{vid}_2_jnr"
-    if not run.finished(stage):
-        if from_cache(cache, f"jnr/{jnr.name}", jnr):
-            sources["jnr"] = "cache"
-        else:
-            j = cfg["jnr"]
-            run(stage, [py, "-m", "src.infer.jnr_video", "--video", video, "--dets", dets,
-                        "--eligibility", weights()["eligibility"], "--vitstr", weights()["vitstr"],
-                        "--every", j["every"], "--min-conf", j["min_conf"], "--device", a.device, *limit])
-        run.mark(stage)
-    stage = f"{vid}_3_colour"
-    if not run.finished(stage):
-        if from_cache(cache, f"labels/{labels.name}", labels):  # with the hash of the detections it was made from
-            from_cache(cache, f"labels/{labels.name}.sha256", Path(f"{labels}.sha256"))
-            sources["labels"] = "cache"
-        else:
-            run(stage, [py, "-m", "src.team.run", vid, "--boxes", dets, "--video-path", video,
-                        "--seed", cfg["colour"]["seed"]])
-        run.mark(stage)
+            run(name, command())
+            origin[kind] = "computed"
+        if kind == "labels" and sidecar.read_text().split()[0] != sha256(dets):
+            sys.exit(f"{labels.name} was made from other detections than {dets.name} ({sidecar.name})")
+        if kind in ("jnr", "labels"):
+            check_rows(outs[0], dets)
+        run.mark(name, origin[kind], inputs, outs)
     t = cfg["tracker"]
     run(f"{vid}_4_track", [py, "src/tracker/run_ucmc.py", dets, FINAL / "court_registration.csv", tracks,
                            "--labels", labels, "--cdt", t["cdt"], "--ambiguity", t["ambiguity"],
@@ -223,8 +276,7 @@ def one_video(video: Path, cfg: dict, a: argparse.Namespace, run: Runner, weight
     files = {"detections": dets, "jnr": jnr, "labels": labels, "tracks": tracks, "submission": sub}
     m = {"video": str(video), "video_sha256": sha256(video), "n_frames": n_frames,
          "outputs": {k: sha256(p) for k, p in files.items()},
-         "computed_here": [k for k in ("detections", "jnr", "labels") if k not in sources] + ["tracks", "submission"],
-         "from_cache": sorted(sources)}
+         "origin": {**origin, "tracks": "computed", "submission": "computed"}}
     ref = cfg.get("reference", {}).get(vid)
     if ref and not a.limit:
         m["reference"] = {k: ("same" if m["outputs"][k] == v else "DIFFERENT") for k, v in ref.items() if k in files}

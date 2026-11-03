@@ -64,8 +64,8 @@ uv run --no-sync python run_pipeline.py --config configs/submission.yaml \
 
 With both challenge videos, the run ends with `runs/fresh/submission/IMG_0114.txt`, `IMG_0115.txt`, the validated upload
 ZIP `runs/fresh/submission.zip`, `logs/` and `manifest.json`. The manifest records the environment (Python, platform,
-commit), the weights loaded and hash-checked in this run, which outputs were computed and which came from the cache (with
-the cache's own provenance), the sha256 of every stage output, whether each is byte-identical to the submitted run
+commit), the weights loaded and hash-checked in this run, the origin of every stage output (`computed`,
+`copied_from_cache` or `reused_from_previous_run`, with the cache's own provenance), the sha256 of every stage output, whether each is byte-identical to the submitted run
 (`same` / `DIFFERENT`), and `ti_hota_vs_submitted`. A finished run exits with 0 even if outputs differ; add `--verify` for
 a strict replay that exits with 1 unless every output is byte-identical.
 
@@ -74,12 +74,16 @@ The output folder is guarded:
   repo it must be under `runs/`;
 - rerunning into the same folder resumes the stages that finished, but only if the videos, config, cache, device,
   `--limit` and commit are the same (`run.json`). Otherwise, or if the folder is non-empty without `run.json`, the run
-  is refused before anything is written.
+  is refused before anything is written;
+- a finished stage is reused only if its inputs and outputs still have the hashes recorded in `done/<stage>.json`. A
+  missing or changed file makes the stage run again.
 
 Options:
 - `--cache-dir results/challenge/intermediates`: take detections, jersey evidence and colour labels from the submitted
   run instead of computing them. Only stages 4 to 6 run, on CPU, in about a minute. With `--verify` this is the exact
-  replay check.
+  replay check. A partial cache works too (e.g. detections and jersey evidence only, so the colour labels are recomputed),
+  but jersey evidence and labels point into the detection file row by row: a cached one is accepted only if the
+  detections also came from the cache, and every one, cached or computed, is checked against the detection file's rows.
 - `--device cpu`: the jersey reader on CPU. The detector uses CUDA when available, otherwise MPS on a Mac, otherwise CPU.
 - `--limit N`: smoke test on the first N frames of each video (no reference comparison).
 
